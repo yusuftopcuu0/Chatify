@@ -1,9 +1,80 @@
-function Signup() {
+import { useState } from "react";
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Container,
+  Paper,
+} from "@mui/material";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../services/firebaseConfig";
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "../store/authStore";
+
+const Signup = () => {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      const user = auth.currentUser;
+      if (user) {
+        useAuthStore.getState().setUser({
+          email: user.email || "",
+          uid: user.uid,
+        });
+      }
+      navigate("/chat");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Bir hata oluştu");
+    }
+  };
+
   return (
-    <div>
-      <div>Signup</div>
-    </div>
+    <Container maxWidth="sm">
+      <Paper elevation={3} sx={{ padding: 4, mt: 8 }}>
+        <Typography variant="h4" align="center" gutterBottom>
+          Chatify - Kayıt Ol
+        </Typography>
+        <form onSubmit={handleSignup}>
+          <Box display="flex" flexDirection="column" gap={2}>
+            <TextField
+              label="Email"
+              variant="outlined"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+            />
+            <TextField
+              label="Şifre"
+              variant="outlined"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+            />
+            <Button variant="contained" color="primary" type="submit">
+              Kayıt Ol
+            </Button>
+            <Button onClick={() => navigate("/")} color="secondary">
+              Zaten hesabın var mı? Giriş yap
+            </Button>
+            {error && (
+              <Typography color="error" variant="body2">
+                {error}
+              </Typography>
+            )}
+          </Box>
+        </form>
+      </Paper>
+    </Container>
   );
-}
+};
 
 export default Signup;
