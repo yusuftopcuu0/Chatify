@@ -28,6 +28,7 @@ const Signup = () => {
         useAuthStore.getState().setUser({
           email: user.email || "",
           uid: user.uid,
+          username: username,
         });
       }
       navigate("/chat");

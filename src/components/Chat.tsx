@@ -3,6 +3,7 @@ import { auth, db } from "../services/firebaseConfig";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useAuthStore } from "../store/authStore";
 import {
   collection,
   addDoc,
@@ -217,11 +218,13 @@ const Chat = () => {
           alignItems: "center",
         }}
       >
-        <Typography variant="h4" component="h1">
+        <Typography variant="h4" component="h1" color="white">
           Chatify
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Typography variant="subtitle1">{userEmail}</Typography>
+          <Typography variant="subtitle1" color="white">
+            {userEmail}
+          </Typography>
           <Button
             onClick={handleLogout}
             variant="contained"
@@ -233,11 +236,18 @@ const Chat = () => {
         </Box>
       </Box>
 
-      <Box sx={{ display: "flex", flexGrow: 1, gap: 2, overflow: "hidden" }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexGrow: 1,
+          gap: 2,
+          overflow: "hidden",
+        }}
+      >
         <Paper
           elevation={3}
           sx={{
-            width: 300,
+            width: "25%",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
@@ -378,7 +388,7 @@ const Chat = () => {
                           variant="caption"
                           sx={{ fontWeight: "bold" }}
                         >
-                          {msg.user}
+                          {useAuthStore.getState().user?.username || msg.user.split('@')[0]}
                         </Typography>
                       </Box>
                       <Typography variant="body1">{msg.text}</Typography>

@@ -14,7 +14,6 @@ import { useAuthStore } from "../store/authStore";
 
 const Login = () => {
   const navigate = useNavigate();
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -44,13 +43,6 @@ const Login = () => {
         </Typography>
         <form onSubmit={handleLogin}>
           <Box display="flex" flexDirection="column" gap={2}>
-            <TextField
-              label="Kullanıcı Adı"
-              variant="outlined"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
             <TextField
               label="Email"
               variant="outlined"

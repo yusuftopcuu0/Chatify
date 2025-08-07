@@ -4,8 +4,9 @@ interface AuthState {
   user: {
     email: string;
     uid: string;
+    username?: string;
   } | null;
-  setUser: (user: { email: string; uid: string }) => void;
+  setUser: (user: { email: string; uid: string; username?: string }) => void;
   clearUser: () => void;
 }
 
