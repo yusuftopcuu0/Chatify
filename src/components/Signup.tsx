@@ -8,9 +8,10 @@ import {
   Paper,
 } from "@mui/material";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../services/firebaseConfig";
+import { auth, db } from "../services/firebaseConfig";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -21,17 +22,44 @@ const Signup = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      const user = auth.currentUser;
+      const usernameDoc = await getDoc(
+        doc(db, "usernames", username.toLowerCase())
+      );
+      if (usernameDoc.exists()) {
+        setError("Bu kullanıcı adı zaten alınmış");
+        return;
+      }
+
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+
       if (user) {
+        await setDoc(doc(db, "usernames", username.toLowerCase()), {
+          uid: user.uid,
+          createdAt: new Date().toISOString(),
+        });
+
+        await setDoc(doc(db, "users", user.uid), {
+          email: user.email,
+          username: username,
+          createdAt: new Date().toISOString(),
+        });
+
         useAuthStore.getState().setUser({
           email: user.email || "",
           uid: user.uid,
           username: username,
         });
+
+        navigate("/chat");
       }
-      navigate("/chat");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Bir hata oluştu");
     }

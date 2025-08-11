@@ -19,7 +19,6 @@ import {
 } from "firebase/firestore";
 import {
   Button,
-  Container,
   Paper,
   Typography,
   TextField,
@@ -30,11 +29,13 @@ import {
   ListItemText,
   Divider,
   ListItemButton,
+  InputAdornment,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChatIcon from "@mui/icons-material/Chat";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import SearchIcon from "@mui/icons-material/Search";
 
 interface Message {
   id: string;
@@ -46,6 +47,11 @@ interface Message {
 interface Chat {
   id: string;
   participants: string[];
+  participantData?: {
+    [email: string]: {
+      username: string;
+    };
+  };
   lastMessage?: string;
   lastMessageTime?: Timestamp;
   createdAt: Timestamp;
@@ -60,6 +66,7 @@ const Chat = () => {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [newChatEmail, setNewChatEmail] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -72,17 +79,27 @@ const Chat = () => {
           where("participants", "array-contains", email)
         );
 
-        const unsubscribeChats = onSnapshot(chatsQuery, (querySnapshot) => {
-          const chatsList: Chat[] = [];
-          querySnapshot.forEach((doc) => {
-            chatsList.push({ id: doc.id, ...doc.data() } as Chat);
-          });
-          setChats(chatsList);
+        const unsubscribeChats = onSnapshot(
+          chatsQuery,
+          async (querySnapshot) => {
+            const chatsList: Chat[] = [];
 
-          if (chatsList.length > 0 && !selectedChat) {
-            setSelectedChat(chatsList[0].id);
+            for (const doc of querySnapshot.docs) {
+              const chatData = doc.data() as Omit<Chat, "id">;
+              chatsList.push({
+                id: doc.id,
+                ...chatData,
+                participantData: chatData.participantData || {},
+              });
+            }
+
+            setChats(chatsList);
+
+            if (chatsList.length > 0 && !selectedChat) {
+              setSelectedChat(chatsList[0].id);
+            }
           }
-        });
+        );
 
         return () => unsubscribeChats();
       } else {
@@ -137,11 +154,6 @@ const Chat = () => {
     }
 
     try {
-      const chatsQuery = query(
-        collection(db, "chats"),
-        where("participants", "==", [userEmail, newChatEmail].sort())
-      );
-
       const querySnapshot = await getDoc(
         doc(db, "chats", `${userEmail}_${newChatEmail}`)
       );
@@ -150,8 +162,19 @@ const Chat = () => {
         toast.error("Bu sohbet zaten mevcut!");
         setSelectedChat(querySnapshot.id);
       } else {
+        const currentUser = auth.currentUser;
+        const currentUserEmail = currentUser?.email || "";
+        const currentUsername =
+          currentUser?.displayName || currentUserEmail.split("@")[0];
+
+        const otherUsername = newChatEmail.split("@")[0];
+
         const newChat = {
           participants: [userEmail, newChatEmail].sort(),
+          participantData: {
+            [currentUserEmail]: { username: currentUsername },
+            [newChatEmail]: { username: otherUsername },
+          },
           lastMessage: "",
           lastMessageTime: serverTimestamp(),
           createdAt: serverTimestamp(),
@@ -196,22 +219,42 @@ const Chat = () => {
 
   const getChatName = (chat: Chat) => {
     if (!userEmail) return "";
-    const otherParticipant = chat.participants.find((p) => p !== userEmail);
-    return otherParticipant || "Chat";
+    const otherParticipantEmail =
+      chat.participants.find((p) => p !== userEmail) || "";
+
+    if (chat.participantData?.[otherParticipantEmail]?.username) {
+      return chat.participantData[otherParticipantEmail].username;
+    }
+
+    return otherParticipantEmail.split("@")[0] || "Chat";
   };
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const target = e.target as HTMLInputElement;
+    setSearch(target.value);
+  };
+
+  const filteredChats = chats.filter(chat => {
+    if (!search.trim()) return true;
+    const searchTerm = search.toLowerCase();
+    const chatName = getChatName(chat).toLowerCase();
+    const participantEmails = chat.participants.join(' ').toLowerCase();
+    return chatName.includes(searchTerm) || participantEmails.includes(searchTerm);
+  });
+
   return (
-    <Container
+    <Box
       maxWidth="lg"
       sx={{
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        p: 2,
-        gap: 2,
+        // pb: 2,
+        // gap: 2,
       }}
     >
-      <Box
+      {/* <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
@@ -225,23 +268,17 @@ const Chat = () => {
           <Typography variant="subtitle1" color="white">
             {userEmail}
           </Typography>
-          <Button
-            onClick={handleLogout}
-            variant="contained"
-            color="error"
-            startIcon={<LogoutIcon />}
-          >
-            Çıkış
-          </Button>
+
         </Box>
-      </Box>
+      </Box> */}
 
       <Box
         sx={{
           display: "flex",
           flexGrow: 1,
-          gap: 2,
+          gap: 0.3,
           overflow: "hidden",
+          width: "100vw",
         }}
       >
         <Paper
@@ -275,9 +312,37 @@ const Chat = () => {
                 Ekle
               </Button>
             </form>
+            <form
+              onSubmit={handleSearch}
+              style={{ display: "flex", gap: 8, marginTop: 8 }}
+            >
+              <TextField
+                size="small"
+                placeholder="Kişi veya e-posta ara"
+                value={search}
+                onChange={handleSearch}
+                fullWidth
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </form>
+            <Button
+              onClick={handleLogout}
+              variant="contained"
+              color="error"
+              startIcon={<LogoutIcon />}
+              sx={{ width: "100%", mt: 2 }}
+            >
+              Çıkış
+            </Button>
           </Box>
           <List sx={{ overflowY: "auto", flexGrow: 1 }}>
-            {chats.map((chat) => (
+            {filteredChats.map((chat) => (
               <div key={chat.id}>
                 <ListItemButton
                   selected={selectedChat === chat.id}
@@ -295,7 +360,7 @@ const Chat = () => {
                 <Divider />
               </div>
             ))}
-            {chats.length === 0 && (
+            {filteredChats.length === 0 && (
               <ListItem>
                 <ListItemText
                   primary="Henüz sohbet yok"
@@ -306,12 +371,12 @@ const Chat = () => {
           </List>
         </Paper>
 
-        {/* Chat Area */}
         <Paper
           elevation={3}
           sx={{
             flexGrow: 1,
             display: "flex",
+            width: "75%",
             flexDirection: "column",
             overflow: "hidden",
           }}
@@ -388,7 +453,8 @@ const Chat = () => {
                           variant="caption"
                           sx={{ fontWeight: "bold" }}
                         >
-                          {useAuthStore.getState().user?.username || msg.user.split('@')[0]}
+                          {useAuthStore.getState().user?.username ||
+                            msg.user.split("@")[0]}
                         </Typography>
                       </Box>
                       <Typography variant="body1">{msg.text}</Typography>
@@ -465,7 +531,7 @@ const Chat = () => {
           )}
         </Paper>
       </Box>
-    </Container>
+    </Box>
   );
 };
 
