@@ -235,12 +235,14 @@ const Chat = () => {
     setSearch(target.value);
   };
 
-  const filteredChats = chats.filter(chat => {
+  const filteredChats = chats.filter((chat) => {
     if (!search.trim()) return true;
     const searchTerm = search.toLowerCase();
     const chatName = getChatName(chat).toLowerCase();
-    const participantEmails = chat.participants.join(' ').toLowerCase();
-    return chatName.includes(searchTerm) || participantEmails.includes(searchTerm);
+    const participantEmails = chat.participants.join(" ").toLowerCase();
+    return (
+      chatName.includes(searchTerm) || participantEmails.includes(searchTerm)
+    );
   });
 
   return (
@@ -250,28 +252,8 @@ const Chat = () => {
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        // pb: 2,
-        // gap: 2,
       }}
     >
-      {/* <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Typography variant="h4" component="h1" color="white">
-          Chatify
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Typography variant="subtitle1" color="white">
-            {userEmail}
-          </Typography>
-
-        </Box>
-      </Box> */}
-
       <Box
         sx={{
           display: "flex",
@@ -288,6 +270,7 @@ const Chat = () => {
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
+            bgcolor: "#f0f2f5",
           }}
         >
           <Box sx={{ p: 2, borderBottom: "1px solid rgba(0,0,0,0.12)" }}>
@@ -379,15 +362,23 @@ const Chat = () => {
             width: "75%",
             flexDirection: "column",
             overflow: "hidden",
+            bgcolor: "#e5ddd5",
           }}
         >
           {selectedChat ? (
             <>
               <Box sx={{ p: 2, borderBottom: "1px solid rgba(0,0,0,0.12)" }}>
-                <Typography variant="h6">
+                <Typography variant="h5">
                   {selectedChat
                     ? getChatName(chats.find((c) => c.id === selectedChat)!)
                     : "Sohbet"}
+                </Typography>
+                <Typography variant="caption">
+                  Son Mesaj Tarihi:{" "}
+                  {chats
+                    .find((c) => c.id === selectedChat)
+                    ?.lastMessageTime?.toDate()
+                    .toLocaleString()}
                 </Typography>
               </Box>
               <List
@@ -424,10 +415,8 @@ const Chat = () => {
                         display: "flex",
                         flexDirection: "column",
                         maxWidth: "70%",
-                        bgcolor:
-                          msg.user === userEmail ? "primary.light" : "grey.200",
-                        color:
-                          msg.user === userEmail ? "white" : "text.primary",
+                        bgcolor: msg.user === userEmail ? "#dcf8c6" : "#ffffff",
+                        color: "text.primary",
                         p: 1.5,
                         borderRadius: 2,
                         boxShadow: 1,
