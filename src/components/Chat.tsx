@@ -4,6 +4,7 @@ import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuthStore } from "../store/authStore";
+import { useTheme, useMediaQuery } from "@mui/material";
 import {
   collection,
   addDoc,
@@ -59,6 +60,8 @@ interface Chat {
 
 const Chat = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -67,6 +70,7 @@ const Chat = () => {
   const [newChatEmail, setNewChatEmail] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
+  const [showChatList, setShowChatList] = useState(!isMobile);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -245,36 +249,75 @@ const Chat = () => {
     );
   });
 
+  // Toggle chat list on mobile
+  const toggleChatList = () => {
+    setShowChatList(!showChatList);
+  };
+
+  // Close chat list when a chat is selected on mobile
+  useEffect(() => {
+    if (isMobile && selectedChat) {
+      setShowChatList(false);
+    }
+  }, [selectedChat, isMobile]);
+
   return (
     <Box
-      maxWidth="lg"
       sx={{
         height: "100vh",
         display: "flex",
         flexDirection: "column",
+        maxWidth: "100vw",
+        overflow: "hidden",
+        position: "relative",
       }}
     >
       <Box
         sx={{
           display: "flex",
           flexGrow: 1,
-          gap: 0.3,
           overflow: "hidden",
-          width: "100vw",
+          width: "100%",
+          position: "relative",
         }}
       >
+        {/* Chat List Panel */}
         <Paper
           elevation={3}
           sx={{
-            width: "25%",
-            display: "flex",
+            width: { xs: "100%", md: "25%" },
+            display: { xs: showChatList ? "flex" : "none", md: "flex" },
             flexDirection: "column",
             overflow: "hidden",
             bgcolor: "#f0f2f5",
+            position: { xs: "absolute", md: "relative" },
+            height: "100%",
+            zIndex: 10,
+            maxWidth: { xs: "100%", md: "400px" },
           }}
         >
           <Box sx={{ p: 2, borderBottom: "1px solid rgba(0,0,0,0.12)" }}>
-            <Typography variant="h6">Sohbetler</Typography>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 1,
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                Sohbetler
+              </Typography>
+              {/* {isMobile && (
+                <Button
+                  onClick={toggleChatList}
+                  size="small"
+                  sx={{ display: { xs: "block", md: "none" } }}
+                >
+                  Kapat
+                </Button>
+              )} */}
+            </Box>
             <form
               onSubmit={handleCreateChat}
               style={{ display: "flex", gap: 8, marginTop: 8 }}
@@ -354,17 +397,43 @@ const Chat = () => {
           </List>
         </Paper>
 
+        {/* Chat Area */}
         <Paper
           elevation={3}
           sx={{
             flexGrow: 1,
             display: "flex",
-            width: "75%",
+            width: { xs: "100%", md: "75%" },
             flexDirection: "column",
             overflow: "hidden",
             bgcolor: "#e5ddd5",
+            position: "relative",
           }}
         >
+          {/* Mobile header with back button */}
+          {isMobile && selectedChat && (
+            <Box
+              sx={{
+                display: { xs: "flex", md: "none" },
+                alignItems: "center",
+                p: 1,
+                bgcolor: "primary.main",
+                color: "white",
+              }}
+            >
+              <Button
+                onClick={toggleChatList}
+                sx={{ color: "white", minWidth: "auto", mr: 1 }}
+              >
+                ←
+              </Button>
+              <Typography variant="subtitle1" noWrap>
+                {selectedChat
+                  ? getChatName(chats.find((c) => c.id === selectedChat)!)
+                  : "Sohbet"}
+              </Typography>
+            </Box>
+          )}
           {selectedChat ? (
             <>
               <Box sx={{ p: 2, borderBottom: "1px solid rgba(0,0,0,0.12)" }}>
@@ -414,12 +483,13 @@ const Chat = () => {
                       sx={{
                         display: "flex",
                         flexDirection: "column",
-                        maxWidth: "70%",
+                        maxWidth: { xs: "85%", sm: "70%" },
                         bgcolor: msg.user === userEmail ? "#dcf8c6" : "#ffffff",
                         color: "text.primary",
                         p: 1.5,
                         borderRadius: 2,
                         boxShadow: 1,
+                        wordBreak: "break-word",
                       }}
                     >
                       <Box
@@ -473,8 +543,12 @@ const Chat = () => {
                 sx={{
                   display: "flex",
                   gap: 1,
-                  p: 2,
+                  p: { xs: 1, sm: 2 },
                   borderTop: "1px solid rgba(0,0,0,0.12)",
+                  position: "sticky",
+                  bottom: 0,
+                  bgcolor: "background.paper",
+                  zIndex: 1,
                 }}
               >
                 <TextField
@@ -490,9 +564,23 @@ const Chat = () => {
                   variant="contained"
                   color="primary"
                   disabled={!message.trim()}
-                  endIcon={<SendIcon />}
+                  sx={{
+                    minWidth: "auto",
+                    "& .MuiButton-endIcon": {
+                      margin: 0,
+                    },
+                    "& .MuiButton-startIcon": {
+                      margin: 0,
+                    },
+                  }}
                 >
-                  Gönder
+                  <SendIcon />
+                  <Box
+                    component="span"
+                    sx={{ display: { xs: "none", sm: "inline" }, ml: 1 }}
+                  >
+                    Gönder
+                  </Box>
                 </Button>
               </Box>
             </>
