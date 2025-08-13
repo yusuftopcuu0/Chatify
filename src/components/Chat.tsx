@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Fragment as ReactFragment } from "react";
 import { auth, db } from "../services/firebaseConfig";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
@@ -177,6 +177,13 @@ const Chat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const formatDate = (date: Date) => {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = String(date.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -491,13 +498,6 @@ const Chat = () => {
                     ?.lastMessageTime?.toDate()
                     .toLocaleString()}
                 </Typography>
-                <Typography>
-                  Son Görüntüleme Tarihi:{" "}
-                  {chats
-                    .find((c) => c.id === selectedChat)
-                    ?.lastViewed?.toDate()
-                    .toLocaleString()}
-                </Typography>
               </Box>
               <List
                 sx={{
@@ -517,89 +517,129 @@ const Chat = () => {
                   },
                 }}
               >
-                {messages.map((msg) => (
-                  <ListItem
-                    key={msg.id}
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems:
-                        msg.user === userEmail ? "flex-end" : "flex-start",
-                      p: 1,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        maxWidth: { xs: "85%", sm: "70%" },
-                        bgcolor: msg.user === userEmail ? "#dcf8c6" : "#ffffff",
-                        color: "text.primary",
-                        p: 1.5,
-                        borderRadius: 2,
-                        boxShadow: 1,
-                        wordBreak: "break-word",
-                      }}
-                    >
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", mb: 0.5 }}
-                      >
-                        <Avatar
+                {messages.map((msg, index) => {
+                  const currentDate = msg.timestamp?.toDate();
+                  const prevDate = messages[index - 1]?.timestamp?.toDate();
+                  const showDate =
+                    !prevDate ||
+                    currentDate.getDate() !== prevDate.getDate() ||
+                    currentDate.getMonth() !== prevDate.getMonth() ||
+                    currentDate.getFullYear() !== prevDate.getFullYear();
+
+                  return (
+                    <ReactFragment key={msg.id}>
+                      {showDate && (
+                        <Box
                           sx={{
-                            width: 24,
-                            height: 24,
-                            mr: 1,
-                            bgcolor:
-                              msg.user === userEmail
-                                ? "primary.dark"
-                                : "grey.500",
+                            display: "flex",
+                            justifyContent: "center",
+                            my: 1,
+                            width: "100%",
                           }}
                         >
-                          {msg.user.charAt(0).toUpperCase()}
-                        </Avatar>
-                        <Typography
-                          variant="caption"
-                          sx={{ fontWeight: "bold" }}
-                        >
-                          {useAuthStore.getState().user?.username ||
-                            msg.user.split("@")[0]}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body1">{msg.text}</Typography>
-                      <Box
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              bgcolor: "rgba(0,0,0,0.1)",
+                              px: 2,
+                              py: 0.5,
+                              borderRadius: 4,
+                              color: "text.secondary",
+                            }}
+                          >
+                            {formatDate(currentDate)}
+                          </Typography>
+                        </Box>
+                      )}
+                      <ListItem
+                        key={msg.id}
                         sx={{
                           display: "flex",
-                          alignItems: "center",
-                          justifyContent: "flex-end",
-                          gap: 0.5,
-                          mt: 0.5,
+                          flexDirection: "column",
+                          alignItems:
+                            msg.user === userEmail ? "flex-end" : "flex-start",
+                          p: 1,
                         }}
                       >
-                        <Typography
-                          variant="caption"
+                        <Box
                           sx={{
-                            opacity: 0.7,
+                            display: "flex",
+                            flexDirection: "column",
+                            maxWidth: { xs: "85%", sm: "70%" },
+                            bgcolor:
+                              msg.user === userEmail ? "#dcf8c6" : "#ffffff",
+                            color: "text.primary",
+                            p: 1.5,
+                            borderRadius: 2,
+                            boxShadow: 1,
+                            wordBreak: "break-word",
                           }}
                         >
-                          {msg.timestamp?.toDate().toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </Typography>
-                        {msg.user === userEmail && (
-                          <DoneAllIcon
-                            fontSize="small"
+                          <Box
                             sx={{
-                              opacity: 0.7,
-                              color: msg.read ? "#1976d2" : "inherit",
-                              fontSize: "1rem",
+                              display: "flex",
+                              alignItems: "center",
+                              mb: 0.5,
                             }}
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                  </ListItem>
-                ))}
+                          >
+                            <Avatar
+                              sx={{
+                                width: 24,
+                                height: 24,
+                                mr: 1,
+                                bgcolor:
+                                  msg.user === userEmail
+                                    ? "primary.dark"
+                                    : "grey.500",
+                              }}
+                            >
+                              {msg.user.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <Typography
+                              variant="caption"
+                              sx={{ fontWeight: "bold" }}
+                            >
+                              {useAuthStore.getState().user?.username ||
+                                msg.user.split("@")[0]}
+                            </Typography>
+                          </Box>
+                          <Typography variant="body1">{msg.text}</Typography>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "flex-end",
+                              gap: 0.5,
+                              mt: 0.5,
+                            }}
+                          >
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                opacity: 0.7,
+                              }}
+                            >
+                              {msg.timestamp?.toDate().toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </Typography>
+                            {msg.user === userEmail && (
+                              <DoneAllIcon
+                                fontSize="small"
+                                sx={{
+                                  opacity: 0.7,
+                                  color: msg.read ? "#1976d2" : "inherit",
+                                  fontSize: "1rem",
+                                }}
+                              />
+                            )}
+                          </Box>
+                        </Box>
+                      </ListItem>
+                    </ReactFragment>
+                  );
+                })}
                 <div ref={messagesEndRef} />
               </List>
 
