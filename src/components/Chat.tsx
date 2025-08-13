@@ -179,10 +179,16 @@ const Chat = () => {
   }, [messages]);
 
   const formatDate = (date: Date) => {
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = String(date.getFullYear()).slice(-2);
-    return `${day}/${month}/${year}`;
+    if (!date) return '';
+    try {
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = String(date.getFullYear()).slice(-2);
+      return `${day}/${month}/${year}`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '';
+    }
   };
 
   const scrollToBottom = () => {
@@ -518,13 +524,19 @@ const Chat = () => {
                 }}
               >
                 {messages.map((msg, index) => {
-                  const currentDate = msg.timestamp?.toDate();
+                  // Skip rendering if timestamp is not yet available
+                  if (!msg.timestamp) return null;
+                  
+                  const currentDate = msg.timestamp.toDate();
                   const prevDate = messages[index - 1]?.timestamp?.toDate();
-                  const showDate =
-                    !prevDate ||
-                    currentDate.getDate() !== prevDate.getDate() ||
-                    currentDate.getMonth() !== prevDate.getMonth() ||
-                    currentDate.getFullYear() !== prevDate.getFullYear();
+                  
+                  // Only show date if we have a valid previous date to compare with
+                  const showDate = !prevDate || 
+                    (currentDate && prevDate && (
+                      currentDate.getDate() !== prevDate.getDate() ||
+                      currentDate.getMonth() !== prevDate.getMonth() ||
+                      currentDate.getFullYear() !== prevDate.getFullYear()
+                    ));
 
                   return (
                     <ReactFragment key={msg.id}>
