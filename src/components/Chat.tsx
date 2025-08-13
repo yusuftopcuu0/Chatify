@@ -16,7 +16,9 @@ import {
   Timestamp,
   doc,
   getDoc,
+  getDocs,
   setDoc,
+  updateDoc,
 } from "firebase/firestore";
 import {
   Button,
@@ -37,12 +39,14 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import ChatIcon from "@mui/icons-material/Chat";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import SearchIcon from "@mui/icons-material/Search";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
 
 interface Message {
   id: string;
   text: string;
   user: string;
   timestamp: Timestamp;
+  read?: boolean;
 }
 
 interface Chat {
@@ -114,8 +118,38 @@ const Chat = () => {
     return () => unsubscribe();
   }, [navigate, selectedChat]);
 
+  // Update message read status when chat is opened or messages are viewed
+  const updateMessageReadStatus = async (
+    chatId: string,
+    currentUserEmail: string
+  ) => {
+    if (!chatId || !currentUserEmail) return;
+
+    const messagesRef = collection(db, "chats", chatId, "messages");
+    const q = query(
+      messagesRef,
+      where("user", "!=", currentUserEmail),
+      where("read", "!=", true) // Changed to handle both undefined and false cases
+    );
+
+    try {
+      const querySnapshot = await getDocs(q);
+      const batch: Promise<void>[] = [];
+
+      querySnapshot.forEach((doc) => {
+        batch.push(updateDoc(doc.ref, { read: true }));
+      });
+
+      if (batch.length > 0) {
+        await Promise.all(batch);
+      }
+    } catch (error) {
+      console.error("Error updating read status:", error);
+    }
+  };
+
   useEffect(() => {
-    if (!selectedChat) return;
+    if (!selectedChat || !userEmail) return;
 
     const messagesQuery = query(
       collection(db, "chats", selectedChat, "messages"),
@@ -125,13 +159,20 @@ const Chat = () => {
     const unsubscribeMessages = onSnapshot(messagesQuery, (querySnapshot) => {
       const messagesList: Message[] = [];
       querySnapshot.forEach((doc) => {
-        messagesList.push({ id: doc.id, ...doc.data() } as Message);
+        messagesList.push({
+          id: doc.id,
+          read: doc.data().read || false,
+          ...doc.data(),
+        } as Message);
       });
       setMessages(messagesList);
+
+      // Update read status when messages are loaded
+      updateMessageReadStatus(selectedChat, userEmail);
     });
 
     return () => unsubscribeMessages();
-  }, [selectedChat]);
+  }, [selectedChat, userEmail]);
 
   useEffect(() => {
     scrollToBottom();
@@ -203,6 +244,7 @@ const Chat = () => {
         text: message,
         user: userEmail,
         timestamp: serverTimestamp(),
+        read: false,
       });
 
       const chatRef = doc(db, "chats", selectedChat);
@@ -449,6 +491,13 @@ const Chat = () => {
                     ?.lastMessageTime?.toDate()
                     .toLocaleString()}
                 </Typography>
+                <Typography>
+                  Son Görüntüleme Tarihi:{" "}
+                  {chats
+                    .find((c) => c.id === selectedChat)
+                    ?.lastViewed?.toDate()
+                    .toLocaleString()}
+                </Typography>
               </Box>
               <List
                 sx={{
@@ -517,20 +566,37 @@ const Chat = () => {
                         </Typography>
                       </Box>
                       <Typography variant="body1">{msg.text}</Typography>
-                      <Typography
-                        variant="caption"
+                      <Box
                         sx={{
-                          display: "block",
-                          textAlign: "right",
-                          opacity: 0.7,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "flex-end",
+                          gap: 0.5,
                           mt: 0.5,
                         }}
                       >
-                        {msg.timestamp?.toDate().toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            opacity: 0.7,
+                          }}
+                        >
+                          {msg.timestamp?.toDate().toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </Typography>
+                        {msg.user === userEmail && (
+                          <DoneAllIcon
+                            fontSize="small"
+                            sx={{
+                              opacity: 0.7,
+                              color: msg.read ? "#1976d2" : "inherit",
+                              fontSize: "1rem",
+                            }}
+                          />
+                        )}
+                      </Box>
                     </Box>
                   </ListItem>
                 ))}
