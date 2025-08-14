@@ -179,15 +179,15 @@ const Chat = () => {
   }, [messages]);
 
   const formatDate = (date: Date) => {
-    if (!date) return '';
+    if (!date) return "";
     try {
       const day = String(date.getDate()).padStart(2, "0");
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const year = String(date.getFullYear()).slice(-2);
       return `${day}/${month}/${year}`;
     } catch (error) {
-      console.error('Error formatting date:', error);
-      return '';
+      console.error("Error formatting date:", error);
+      return "";
     }
   };
 
@@ -304,12 +304,17 @@ const Chat = () => {
     );
   });
 
-  // Toggle chat list on mobile
   const toggleChatList = () => {
     setShowChatList(!showChatList);
   };
 
-  // Close chat list when a chat is selected on mobile
+  const handleChatSelect = (chatId: string) => {
+    setSelectedChat(chatId);
+    if (isMobile) {
+      setShowChatList(false);
+    }
+  };
+
   useEffect(() => {
     if (isMobile && selectedChat) {
       setShowChatList(false);
@@ -336,7 +341,6 @@ const Chat = () => {
           position: "relative",
         }}
       >
-        {/* Chat List Panel */}
         <Paper
           elevation={3}
           sx={{
@@ -363,15 +367,6 @@ const Chat = () => {
               <Typography variant="h6" sx={{ fontWeight: "bold" }}>
                 Sohbetler
               </Typography>
-              {/* {isMobile && (
-                <Button
-                  onClick={toggleChatList}
-                  size="small"
-                  sx={{ display: { xs: "block", md: "none" } }}
-                >
-                  Kapat
-                </Button>
-              )} */}
             </Box>
             <form
               onSubmit={handleCreateChat}
@@ -427,7 +422,7 @@ const Chat = () => {
               <div key={chat.id}>
                 <ListItemButton
                   selected={selectedChat === chat.id}
-                  onClick={() => setSelectedChat(chat.id)}
+                  onClick={() => handleChatSelect(chat.id)}
                 >
                   <Avatar sx={{ mr: 2, bgcolor: "primary.main" }}>
                     {getChatName(chat).charAt(0).toUpperCase()}
@@ -452,7 +447,6 @@ const Chat = () => {
           </List>
         </Paper>
 
-        {/* Chat Area */}
         <Paper
           elevation={3}
           sx={{
@@ -526,17 +520,18 @@ const Chat = () => {
                 {messages.map((msg, index) => {
                   // Skip rendering if timestamp is not yet available
                   if (!msg.timestamp) return null;
-                  
+
                   const currentDate = msg.timestamp.toDate();
                   const prevDate = messages[index - 1]?.timestamp?.toDate();
-                  
+
                   // Only show date if we have a valid previous date to compare with
-                  const showDate = !prevDate || 
-                    (currentDate && prevDate && (
-                      currentDate.getDate() !== prevDate.getDate() ||
-                      currentDate.getMonth() !== prevDate.getMonth() ||
-                      currentDate.getFullYear() !== prevDate.getFullYear()
-                    ));
+                  const showDate =
+                    !prevDate ||
+                    (currentDate &&
+                      prevDate &&
+                      (currentDate.getDate() !== prevDate.getDate() ||
+                        currentDate.getMonth() !== prevDate.getMonth() ||
+                        currentDate.getFullYear() !== prevDate.getFullYear()));
 
                   return (
                     <ReactFragment key={msg.id}>
