@@ -100,8 +100,7 @@ const Chat = () => {
 
         const chatsQuery = query(
           collection(db, "chats"),
-          where("participants", "array-contains", email),
-          orderBy("lastMessageTime", "desc")
+          where("participants", "array-contains", email)
         );
 
         const unsubscribeChats = onSnapshot(
@@ -125,7 +124,10 @@ const Chat = () => {
             setChats(chatsList);
 
             // Only update selectedChat if it's not set or the current selected chat no longer exists
-            if (chatsList.length > 0 && (!selectedChat || !currentSelectedChatExists)) {
+            if (
+              chatsList.length > 0 &&
+              (!selectedChat || !currentSelectedChatExists)
+            ) {
               setSelectedChat(chatsList[0].id);
             }
           }
@@ -335,7 +337,7 @@ const Chat = () => {
       if (!a.lastMessageTime && !b.lastMessageTime) return 0;
       if (!a.lastMessageTime) return 1;
       if (!b.lastMessageTime) return -1;
-      
+
       // Sort by lastMessageTime in descending order (newest first)
       return b.lastMessageTime.toMillis() - a.lastMessageTime.toMillis();
     });
@@ -688,7 +690,9 @@ const Chat = () => {
                           >
                             <IconButton
                               size="small"
-                              onClick={(e) => handleMenuOpen(e, msg.id, msg.text)}
+                              onClick={(e) =>
+                                handleMenuOpen(e, msg.id, msg.text)
+                              }
                               sx={{
                                 backgroundColor: "rgba(0,0,0,0.1)",
                                 "&:hover": {
@@ -722,28 +726,44 @@ const Chat = () => {
                                 fullWidth
                                 multiline
                                 value={editedMessageText}
-                                onChange={(e) => setEditedMessageText(e.target.value)}
+                                onChange={(e) =>
+                                  setEditedMessageText(e.target.value)
+                                }
                                 variant="outlined"
                                 size="small"
                                 sx={{
                                   mb: 1,
-                                  '& .MuiOutlinedInput-root': {
-                                    color: msg.user === userEmail ? 'white' : 'black',
-                                    '& fieldset': {
-                                      borderColor: 'rgba(255, 255, 255, 0.5)',
+                                  "& .MuiOutlinedInput-root": {
+                                    color:
+                                      msg.user === userEmail
+                                        ? "white"
+                                        : "black",
+                                    "& fieldset": {
+                                      borderColor: "rgba(255, 255, 255, 0.5)",
                                     },
-                                    '&:hover fieldset': {
-                                      borderColor: 'rgba(255, 255, 255, 0.8)',
+                                    "&:hover fieldset": {
+                                      borderColor: "rgba(255, 255, 255, 0.8)",
                                     },
                                   },
                                 }}
                                 autoFocus
                               />
-                              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "flex-end",
+                                  gap: 1,
+                                }}
+                              >
                                 <Button
                                   size="small"
                                   onClick={() => setEditingMessageId(null)}
-                                  sx={{ color: msg.user === userEmail ? 'white' : 'inherit' }}
+                                  sx={{
+                                    color:
+                                      msg.user === userEmail
+                                        ? "white"
+                                        : "inherit",
+                                  }}
                                 >
                                   İptal
                                 </Button>
@@ -792,7 +812,7 @@ const Chat = () => {
                                   component="span"
                                   variant="caption"
                                   sx={{
-                                    fontStyle: 'italic',
+                                    fontStyle: "italic",
                                     ml: 0.5,
                                     opacity: 0.7,
                                   }}
@@ -906,26 +926,32 @@ const Chat = () => {
           horizontal: "left",
         }}
       >
-        <MenuItem onClick={(e) => {
-          e.stopPropagation();
-          if (selectedMessageId) {
-            startEditing(selectedMessageId, editedMessageText);
-          }
-        }}>
+        <MenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            if (selectedMessageId) {
+              startEditing(selectedMessageId, editedMessageText);
+            }
+          }}
+        >
           <ListItemIcon>
             <EditIcon fontSize="small" />
           </ListItemIcon>
           <Typography variant="body2">Düzenle</Typography>
         </MenuItem>
         <Divider />
-        <MenuItem onClick={(e) => {
-          e.stopPropagation();
-          handleDeleteMessage();
-        }}>
+        <MenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteMessage();
+          }}
+        >
           <ListItemIcon>
             <DeleteIcon fontSize="small" color="error" />
           </ListItemIcon>
-          <Typography variant="body2" color="error">Mesajı Sil</Typography>
+          <Typography variant="body2" color="error">
+            Mesajı Sil
+          </Typography>
         </MenuItem>
       </Menu>
     </Box>
