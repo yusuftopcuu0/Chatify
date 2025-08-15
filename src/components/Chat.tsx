@@ -100,7 +100,8 @@ const Chat = () => {
 
         const chatsQuery = query(
           collection(db, "chats"),
-          where("participants", "array-contains", email)
+          where("participants", "array-contains", email),
+          orderBy("lastMessageTime", "desc")
         );
 
         const unsubscribeChats = onSnapshot(
@@ -314,15 +315,25 @@ const Chat = () => {
     setSearch(target.value);
   };
 
-  const filteredChats = chats.filter((chat) => {
-    if (!search.trim()) return true;
-    const searchTerm = search.toLowerCase();
-    const chatName = getChatName(chat).toLowerCase();
-    const participantEmails = chat.participants.join(" ").toLowerCase();
-    return (
-      chatName.includes(searchTerm) || participantEmails.includes(searchTerm)
-    );
-  });
+  const filteredChats = chats
+    .filter((chat) => {
+      if (!search.trim()) return true;
+      const searchTerm = search.toLowerCase();
+      const chatName = getChatName(chat).toLowerCase();
+      const participantEmails = chat.participants.join(" ").toLowerCase();
+      return (
+        chatName.includes(searchTerm) || participantEmails.includes(searchTerm)
+      );
+    })
+    .sort((a, b) => {
+      // If either chat doesn't have a lastMessageTime, put it at the end
+      if (!a.lastMessageTime && !b.lastMessageTime) return 0;
+      if (!a.lastMessageTime) return 1;
+      if (!b.lastMessageTime) return -1;
+      
+      // Sort by lastMessageTime in descending order (newest first)
+      return b.lastMessageTime.toMillis() - a.lastMessageTime.toMillis();
+    });
 
   const toggleChatList = () => {
     setShowChatList(!showChatList);
