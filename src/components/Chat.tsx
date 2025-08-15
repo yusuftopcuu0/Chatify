@@ -41,6 +41,7 @@ import {
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import SendIcon from "@mui/icons-material/Send";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChatIcon from "@mui/icons-material/Chat";
@@ -54,6 +55,8 @@ interface Message {
   user: string;
   timestamp: Timestamp;
   read?: boolean;
+  edited?: boolean;
+  editedAt?: Timestamp;
 }
 
 interface Chat {
@@ -86,6 +89,8 @@ const Chat = () => {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null
   );
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editedMessageText, setEditedMessageText] = useState("");
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -332,10 +337,12 @@ const Chat = () => {
 
   const handleMenuOpen = (
     event: React.MouseEvent<HTMLElement>,
-    messageId: string
+    messageId: string,
+    messageText: string
   ) => {
     setAnchorEl(event.currentTarget);
     setSelectedMessageId(messageId);
+    setEditedMessageText(messageText);
   };
 
   const handleMenuClose = () => {
@@ -360,6 +367,37 @@ const Chat = () => {
     } finally {
       handleMenuClose();
     }
+  };
+
+  const handleEditMessage = async () => {
+    if (!selectedMessageId || !selectedChat || !editedMessageText.trim()) {
+      handleMenuClose();
+      return;
+    }
+
+    try {
+      await updateDoc(
+        doc(db, "chats", selectedChat, "messages", selectedMessageId),
+        {
+          text: editedMessageText.trim(),
+          edited: true,
+          editedAt: serverTimestamp(),
+        }
+      );
+      setEditingMessageId(null);
+      setEditedMessageText("");
+    } catch (error) {
+      console.error("Error updating message: ", error);
+      toast.error("Mesaj güncellenirken bir hata oluştu");
+    } finally {
+      handleMenuClose();
+    }
+  };
+
+  const startEditing = (messageId: string, text: string) => {
+    setEditingMessageId(messageId);
+    setEditedMessageText(text);
+    setAnchorEl(null);
   };
 
   useEffect(() => {
@@ -634,7 +672,7 @@ const Chat = () => {
                           >
                             <IconButton
                               size="small"
-                              onClick={(e) => handleMenuOpen(e, msg.id)}
+                              onClick={(e) => handleMenuOpen(e, msg.id, msg.text)}
                               sx={{
                                 backgroundColor: "rgba(0,0,0,0.1)",
                                 "&:hover": {
@@ -662,7 +700,50 @@ const Chat = () => {
                             position: "relative",
                           }}
                         >
-                          <Typography variant="body1">{msg.text}</Typography>
+                          {editingMessageId === msg.id ? (
+                            <Box>
+                              <TextField
+                                fullWidth
+                                multiline
+                                value={editedMessageText}
+                                onChange={(e) => setEditedMessageText(e.target.value)}
+                                variant="outlined"
+                                size="small"
+                                sx={{
+                                  mb: 1,
+                                  '& .MuiOutlinedInput-root': {
+                                    color: msg.user === userEmail ? 'white' : 'black',
+                                    '& fieldset': {
+                                      borderColor: 'rgba(255, 255, 255, 0.5)',
+                                    },
+                                    '&:hover fieldset': {
+                                      borderColor: 'rgba(255, 255, 255, 0.8)',
+                                    },
+                                  },
+                                }}
+                                autoFocus
+                              />
+                              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                <Button
+                                  size="small"
+                                  onClick={() => setEditingMessageId(null)}
+                                  sx={{ color: msg.user === userEmail ? 'white' : 'inherit' }}
+                                >
+                                  İptal
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  onClick={handleEditMessage}
+                                  disabled={!editedMessageText.trim()}
+                                >
+                                  Kaydet
+                                </Button>
+                              </Box>
+                            </Box>
+                          ) : (
+                            <Typography variant="body1">{msg.text}</Typography>
+                          )}
                           <Box
                             sx={{
                               display: "flex",
@@ -690,6 +771,19 @@ const Chat = () => {
                                     minute: "2-digit",
                                   })
                                 : ""}
+                              {msg.edited && (
+                                <Typography
+                                  component="span"
+                                  variant="caption"
+                                  sx={{
+                                    fontStyle: 'italic',
+                                    ml: 0.5,
+                                    opacity: 0.7,
+                                  }}
+                                >
+                                  (düzenlendi)
+                                </Typography>
+                              )}
                             </Typography>
                             {msg.user === userEmail && (
                               <DoneAllIcon
@@ -796,11 +890,26 @@ const Chat = () => {
           horizontal: "left",
         }}
       >
-        <MenuItem onClick={handleDeleteMessage}>
+        <MenuItem onClick={(e) => {
+          e.stopPropagation();
+          if (selectedMessageId) {
+            startEditing(selectedMessageId, editedMessageText);
+          }
+        }}>
           <ListItemIcon>
-            <DeleteIcon fontSize="small" />
+            <EditIcon fontSize="small" />
           </ListItemIcon>
-          <Typography variant="body2">Mesajı Sil</Typography>
+          <Typography variant="body2">Düzenle</Typography>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={(e) => {
+          e.stopPropagation();
+          handleDeleteMessage();
+        }}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <Typography variant="body2" color="error">Mesajı Sil</Typography>
         </MenuItem>
       </Menu>
     </Box>
