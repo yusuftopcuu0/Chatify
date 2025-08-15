@@ -92,6 +92,9 @@ const Chat = () => {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editedMessageText, setEditedMessageText] = useState("");
 
+  // Track if this is the initial load
+  const initialLoad = useRef(true);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
@@ -108,9 +111,14 @@ const Chat = () => {
           chatsQuery,
           async (querySnapshot) => {
             const chatsList: Chat[] = [];
+            let currentSelectedChatExists = false;
+            const previousSelectedChat = selectedChat;
 
             for (const doc of querySnapshot.docs) {
               const chatData = doc.data() as Omit<Chat, "id">;
+              if (doc.id === previousSelectedChat) {
+                currentSelectedChatExists = true;
+              }
               chatsList.push({
                 id: doc.id,
                 ...chatData,
@@ -118,11 +126,21 @@ const Chat = () => {
               });
             }
 
+            // Update chats list but don't change the selected chat
             setChats(chatsList);
 
-            if (chatsList.length > 0 && !selectedChat) {
-              setSelectedChat(chatsList[0].id);
+            // Only set selectedChat on initial load or if the current chat no longer exists
+            if (initialLoad.current || !currentSelectedChatExists) {
+              if (chatsList.length > 0) {
+                // If we had a selected chat but it's no longer in the list, select the first one
+                const newSelectedChat = currentSelectedChatExists ? previousSelectedChat : chatsList[0].id;
+                setSelectedChat(newSelectedChat);
+              }
+              initialLoad.current = false;
             }
+          },
+          (error) => {
+            console.error("Error in chats query:", error);
           }
         );
 
@@ -133,7 +151,7 @@ const Chat = () => {
     });
 
     return () => unsubscribe();
-  }, [navigate, selectedChat]);
+  }, [navigate]); // Removed selectedChat from dependencies to prevent re-triggering
 
   // Update message read status when chat is opened or messages are viewed
   const updateMessageReadStatus = async (
@@ -269,9 +287,12 @@ const Chat = () => {
     e.preventDefault();
     if (message.trim() === "" || !userEmail || !selectedChat) return;
 
+    // Store the currently selected chat ID
+    const currentChatId = selectedChat;
+    
     try {
       const messageRef = await addDoc(
-        collection(db, "chats", selectedChat, "messages"),
+        collection(db, "chats", currentChatId, "messages"),
         {
           text: message,
           user: userEmail,
@@ -280,7 +301,7 @@ const Chat = () => {
         }
       );
 
-      const chatRef = doc(db, "chats", selectedChat);
+      const chatRef = doc(db, "chats", currentChatId);
       await setDoc(
         chatRef,
         {
@@ -291,6 +312,8 @@ const Chat = () => {
         { merge: true }
       );
 
+      // Force update the selected chat to ensure it stays selected
+      setSelectedChat(currentChatId);
       setMessage("");
     } catch (error) {
       console.error("Error sending message: ", error);
