@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef, Fragment as ReactFragment } from "react";
+import { useEffect, useState, useRef, Fragment } from "react";
 import { auth, db } from "../services/firebaseConfig";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useAuthStore } from "../store/authStore";
+// useAuthStore is imported for potential future use
 import { useTheme, useMediaQuery } from "@mui/material";
 import {
   collection,
@@ -19,6 +19,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 import {
   Button,
@@ -33,7 +34,13 @@ import {
   Divider,
   ListItemButton,
   InputAdornment,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
 } from "@mui/material";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import DeleteIcon from "@mui/icons-material/Delete";
 import SendIcon from "@mui/icons-material/Send";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChatIcon from "@mui/icons-material/Chat";
@@ -75,6 +82,10 @@ const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
   const [showChatList, setShowChatList] = useState(!isMobile);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -253,12 +264,15 @@ const Chat = () => {
     if (message.trim() === "" || !userEmail || !selectedChat) return;
 
     try {
-      await addDoc(collection(db, "chats", selectedChat, "messages"), {
-        text: message,
-        user: userEmail,
-        timestamp: serverTimestamp(),
-        read: false,
-      });
+      const messageRef = await addDoc(
+        collection(db, "chats", selectedChat, "messages"),
+        {
+          text: message,
+          user: userEmail,
+          timestamp: serverTimestamp(),
+          read: false,
+        }
+      );
 
       const chatRef = doc(db, "chats", selectedChat);
       await setDoc(
@@ -266,6 +280,7 @@ const Chat = () => {
         {
           lastMessage: message,
           lastMessageTime: serverTimestamp(),
+          lastMessageId: messageRef.id,
         },
         { merge: true }
       );
@@ -312,6 +327,38 @@ const Chat = () => {
     setSelectedChat(chatId);
     if (isMobile) {
       setShowChatList(false);
+    }
+  };
+
+  const handleMenuOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    messageId: string
+  ) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedMessageId(messageId);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedMessageId(null);
+  };
+
+  const handleDeleteMessage = async () => {
+    if (!selectedMessageId || !selectedChat) {
+      handleMenuClose();
+      return;
+    }
+
+    try {
+      await deleteDoc(
+        doc(db, "chats", selectedChat, "messages", selectedMessageId)
+      );
+      toast.success("Mesaj silindi");
+    } catch (error) {
+      console.error("Error deleting message: ", error);
+      toast.error("Mesaj silinirken bir hata oluştu");
+    } finally {
+      handleMenuClose();
     }
   };
 
@@ -534,7 +581,7 @@ const Chat = () => {
                         currentDate.getFullYear() !== prevDate.getFullYear()));
 
                   return (
-                    <ReactFragment key={msg.id}>
+                    <Fragment key={msg.id}>
                       {showDate && (
                         <Box
                           sx={{
@@ -558,78 +605,91 @@ const Chat = () => {
                           </Typography>
                         </Box>
                       )}
-                      <ListItem
+                      <Box
                         key={msg.id}
                         sx={{
                           display: "flex",
-                          flexDirection: "column",
-                          alignItems:
+                          justifyContent:
                             msg.user === userEmail ? "flex-end" : "flex-start",
-                          p: 1,
+                          mb: 1,
+                          width: "100%",
+                          position: "relative",
+                          "&:hover .message-actions": {
+                            opacity: 1,
+                          },
                         }}
                       >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            maxWidth: { xs: "85%", sm: "70%" },
-                            bgcolor:
-                              msg.user === userEmail ? "#dcf8c6" : "#ffffff",
-                            color: "text.primary",
-                            p: 1.5,
-                            borderRadius: 2,
-                            boxShadow: 1,
-                            wordBreak: "break-word",
-                          }}
-                        >
+                        {msg.user === userEmail && (
                           <Box
+                            className="message-actions"
                             sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              mb: 0.5,
+                              position: "absolute",
+                              right: 0,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              opacity: 0,
+                              transition: "opacity 0.2s",
+                              zIndex: 1,
                             }}
                           >
-                            <Avatar
+                            <IconButton
+                              size="small"
+                              onClick={(e) => handleMenuOpen(e, msg.id)}
                               sx={{
-                                width: 24,
-                                height: 24,
-                                mr: 1,
-                                bgcolor:
-                                  msg.user === userEmail
-                                    ? "primary.dark"
-                                    : "grey.500",
+                                backgroundColor: "rgba(0,0,0,0.1)",
+                                "&:hover": {
+                                  backgroundColor: "rgba(0,0,0,0.2)",
+                                },
                               }}
                             >
-                              {msg.user.charAt(0).toUpperCase()}
-                            </Avatar>
-                            <Typography
-                              variant="caption"
-                              sx={{ fontWeight: "bold" }}
-                            >
-                              {useAuthStore.getState().user?.username ||
-                                msg.user.split("@")[0]}
-                            </Typography>
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
                           </Box>
+                        )}
+                        <Paper
+                          elevation={1}
+                          sx={{
+                            p: 1.5,
+                            maxWidth: "70%",
+                            bgcolor:
+                              msg.user === userEmail ? "#0084ff" : "#e9e9eb",
+                            color: msg.user === userEmail ? "white" : "black",
+                            borderRadius: 2,
+                            borderBottomRightRadius:
+                              msg.user === userEmail ? 2 : 18,
+                            borderBottomLeftRadius:
+                              msg.user === userEmail ? 18 : 2,
+                            position: "relative",
+                          }}
+                        >
                           <Typography variant="body1">{msg.text}</Typography>
                           <Box
                             sx={{
                               display: "flex",
-                              alignItems: "center",
                               justifyContent: "flex-end",
-                              gap: 0.5,
+                              alignItems: "center",
                               mt: 0.5,
                             }}
                           >
                             <Typography
                               variant="caption"
                               sx={{
+                                fontSize: "0.7rem",
                                 opacity: 0.7,
+                                color:
+                                  msg.user === userEmail
+                                    ? "rgba(255,255,255,0.8)"
+                                    : "rgba(0,0,0,0.6)",
                               }}
                             >
-                              {msg.timestamp?.toDate().toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {msg.timestamp?.toDate
+                                ? new Date(
+                                    msg.timestamp.toDate()
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : ""}
                             </Typography>
                             {msg.user === userEmail && (
                               <DoneAllIcon
@@ -642,9 +702,9 @@ const Chat = () => {
                               />
                             )}
                           </Box>
-                        </Box>
-                      </ListItem>
-                    </ReactFragment>
+                        </Paper>
+                      </Box>
+                    </Fragment>
                   );
                 })}
                 <div ref={messagesEndRef} />
@@ -721,6 +781,28 @@ const Chat = () => {
           )}
         </Paper>
       </Box>
+
+      {/* Message Actions Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "left",
+        }}
+      >
+        <MenuItem onClick={handleDeleteMessage}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" />
+          </ListItemIcon>
+          <Typography variant="body2">Mesajı Sil</Typography>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };
