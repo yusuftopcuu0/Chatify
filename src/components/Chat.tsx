@@ -38,6 +38,11 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -91,6 +96,8 @@ const Chat = () => {
   );
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editedMessageText, setEditedMessageText] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -387,6 +394,45 @@ const Chat = () => {
     setSelectedMessageId(null);
   };
 
+  const handleDeleteChat = async () => {
+    if (!chatToDelete) return;
+    
+    try {
+      // Delete the chat document
+      await deleteDoc(doc(db, "chats", chatToDelete));
+      
+      // Delete all messages in the chat subcollection
+      const messagesRef = collection(db, "chats", chatToDelete, "messages");
+      const messagesSnapshot = await getDocs(messagesRef);
+      const deletePromises = messagesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      toast.success("Sohbet başarıyla silindi");
+      setChatToDelete(null);
+      setDeleteDialogOpen(false);
+      
+      // Clear selected chat if it was the deleted one
+      if (selectedChat === chatToDelete) {
+        setSelectedChat(null);
+      }
+    } catch (error) {
+      console.error("Error deleting chat: ", error);
+      toast.error("Sohbet silinirken bir hata oluştu");
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const openDeleteDialog = (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering chat selection
+    setChatToDelete(chatId);
+    setDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setChatToDelete(null);
+  };
+
   const handleDeleteMessage = async () => {
     if (!selectedMessageId || !selectedChat) {
       handleMenuClose();
@@ -545,6 +591,12 @@ const Chat = () => {
                 <ListItemButton
                   selected={selectedChat === chat.id}
                   onClick={() => handleChatSelect(chat.id)}
+                  sx={{
+                    position: 'relative',
+                    '&:hover .delete-chat-button': {
+                      opacity: 1,
+                    }
+                  }}
                 >
                   <Avatar sx={{ mr: 2, bgcolor: "primary.main" }}>
                     {getChatName(chat).charAt(0).toUpperCase()}
@@ -553,7 +605,25 @@ const Chat = () => {
                     primary={getChatName(chat)}
                     secondary={chat.lastMessage || "Henüz mesaj yok"}
                     secondaryTypographyProps={{ noWrap: true }}
+                    sx={{ pr: 4 }}
                   />
+                  <IconButton 
+                    className="delete-chat-button"
+                    onClick={(e) => openDeleteDialog(chat.id, e)}
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      right: 8,
+                      opacity: 0,
+                      transition: 'opacity 0.2s',
+                      '&:hover': {
+                        color: 'error.main',
+                        backgroundColor: 'rgba(211, 47, 47, 0.04)'
+                      }
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
                 </ListItemButton>
                 <Divider />
               </div>
@@ -567,6 +637,29 @@ const Chat = () => {
               </ListItem>
             )}
           </List>
+          
+          {/* Delete Confirmation Dialog */}
+          <Dialog
+            open={deleteDialogOpen}
+            onClose={closeDeleteDialog}
+            aria-labelledby="delete-dialog-title"
+            aria-describedby="delete-dialog-description"
+          >
+            <DialogTitle id="delete-dialog-title">Sohbeti Sil</DialogTitle>
+            <DialogContent>
+              <DialogContentText id="delete-dialog-description">
+                Bu sohbeti silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={closeDeleteDialog} color="primary">
+                İptal
+              </Button>
+              <Button onClick={handleDeleteChat} color="error" autoFocus>
+                Sil
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Paper>
 
         <Paper
