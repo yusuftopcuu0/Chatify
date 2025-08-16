@@ -1,12 +1,10 @@
 import { useEffect, useState, useRef, Fragment } from "react";
 import { auth, db } from "../services/firebaseConfig";
 
-// Firestore collection references
 const usersCollection = collection(db, "users");
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-// useAuthStore is imported for potential future use
 import { useTheme, useMediaQuery } from "@mui/material";
 import {
   collection,
@@ -135,7 +133,6 @@ const Chat = () => {
             // Only update selectedChat if it's not set or the current selected chat no longer exists
             if (chatsList.length > 0) {
               if (!selectedChat) {
-                // Eğer hiç sohbet seçili değilse, en güncel sohbeti seç
                 const sortedChats = [...chatsList].sort((a, b) => {
                   if (!a.lastMessageTime && !b.lastMessageTime) return 0;
                   if (!a.lastMessageTime) return 1;
@@ -146,7 +143,6 @@ const Chat = () => {
                 });
                 setSelectedChat(sortedChats[0].id);
               } else if (!currentSelectedChatExists) {
-                // Eğer mevcut seçili sohbet silindiyse, fallback olarak en güncel sohbeti seç
                 const sortedChats = [...chatsList].sort((a, b) => {
                   if (!a.lastMessageTime && !b.lastMessageTime) return 0;
                   if (!a.lastMessageTime) return 1;
@@ -170,7 +166,6 @@ const Chat = () => {
     return () => unsubscribe();
   }, [navigate, selectedChat]);
 
-  // Update message read status when chat is opened or messages are viewed
   const updateMessageReadStatus = async (
     chatId: string,
     currentUserEmail: string
@@ -181,7 +176,7 @@ const Chat = () => {
     const q = query(
       messagesRef,
       where("user", "!=", currentUserEmail),
-      where("read", "!=", true) // Changed to handle both undefined and false cases
+      where("read", "!=", true)
     );
 
     try {
@@ -262,7 +257,6 @@ const Chat = () => {
     }
 
     try {
-      // Kullanıcı var mı kontrol et
       const userQuery = query(
         usersCollection,
         where("email", "==", newChatEmail)
@@ -271,10 +265,9 @@ const Chat = () => {
 
       if (querySnapshot.empty) {
         toast.error("Bu e-posta ile kayıtlı kullanıcı bulunamadı.");
-        return; // Sohbet oluşturmayı durdur
+        return;
       }
 
-      // Sohbet zaten var mı kontrol et
       const chatQuery = query(
         collection(db, "chats"),
         where("participants", "array-contains", userEmail)
@@ -292,7 +285,6 @@ const Chat = () => {
         return;
       }
 
-      // Yeni sohbet oluştur
       const currentUser = auth.currentUser;
       const currentUsername =
         currentUser?.displayName || userEmail.split("@")[0];
@@ -379,12 +371,10 @@ const Chat = () => {
       );
     })
     .sort((a, b) => {
-      // If either chat doesn't have a lastMessageTime, put it at the end
       if (!a.lastMessageTime && !b.lastMessageTime) return 0;
       if (!a.lastMessageTime) return 1;
       if (!b.lastMessageTime) return -1;
 
-      // Sort by lastMessageTime in descending order (newest first)
       return b.lastMessageTime.toMillis() - a.lastMessageTime.toMillis();
     });
 
@@ -418,10 +408,8 @@ const Chat = () => {
     if (!chatToDelete) return;
 
     try {
-      // Delete the chat document
       await deleteDoc(doc(db, "chats", chatToDelete));
 
-      // Delete all messages in the chat subcollection
       const messagesRef = collection(db, "chats", chatToDelete, "messages");
       const messagesSnapshot = await getDocs(messagesRef);
       const deletePromises = messagesSnapshot.docs.map((doc) =>
@@ -433,7 +421,6 @@ const Chat = () => {
       setChatToDelete(null);
       setDeleteDialogOpen(false);
 
-      // Clear selected chat if it was the deleted one
       if (selectedChat === chatToDelete) {
         setSelectedChat(null);
       }
@@ -445,7 +432,7 @@ const Chat = () => {
   };
 
   const openDeleteDialog = (chatId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering chat selection
+    e.stopPropagation();
     setChatToDelete(chatId);
     setDeleteDialogOpen(true);
   };
@@ -660,7 +647,7 @@ const Chat = () => {
             )}
           </List>
 
-          {/* Delete Confirmation Dialog */}
+          {/* Chat'i sil */}
           <Dialog
             open={deleteDialogOpen}
             onClose={closeDeleteDialog}
@@ -697,7 +684,6 @@ const Chat = () => {
             position: "relative",
           }}
         >
-          {/* Mobile header with back button */}
           {isMobile && selectedChat && (
             <Box
               sx={{
@@ -756,13 +742,11 @@ const Chat = () => {
                 }}
               >
                 {messages.map((msg, index) => {
-                  // Skip rendering if timestamp is not yet available
                   if (!msg.timestamp) return null;
 
                   const currentDate = msg.timestamp.toDate();
                   const prevDate = messages[index - 1]?.timestamp?.toDate();
 
-                  // Only show date if we have a valid previous date to compare with
                   const showDate =
                     !prevDate ||
                     (currentDate &&
@@ -1047,7 +1031,7 @@ const Chat = () => {
         </Paper>
       </Box>
 
-      {/* Message Actions Menu */}
+      {/* Mesaj Aksiyon Menü (Düzenle, Sil) */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
