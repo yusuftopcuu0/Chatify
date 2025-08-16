@@ -124,11 +124,30 @@ const Chat = () => {
             setChats(chatsList);
 
             // Only update selectedChat if it's not set or the current selected chat no longer exists
-            if (
-              chatsList.length > 0 &&
-              (!selectedChat || !currentSelectedChatExists)
-            ) {
-              setSelectedChat(chatsList[0].id);
+            if (chatsList.length > 0) {
+              if (!selectedChat) {
+                // Eğer hiç sohbet seçili değilse, en güncel sohbeti seç
+                const sortedChats = [...chatsList].sort((a, b) => {
+                  if (!a.lastMessageTime && !b.lastMessageTime) return 0;
+                  if (!a.lastMessageTime) return 1;
+                  if (!b.lastMessageTime) return -1;
+                  return (
+                    b.lastMessageTime.toMillis() - a.lastMessageTime.toMillis()
+                  );
+                });
+                setSelectedChat(sortedChats[0].id);
+              } else if (!currentSelectedChatExists) {
+                // Eğer mevcut seçili sohbet silindiyse, fallback olarak en güncel sohbeti seç
+                const sortedChats = [...chatsList].sort((a, b) => {
+                  if (!a.lastMessageTime && !b.lastMessageTime) return 0;
+                  if (!a.lastMessageTime) return 1;
+                  if (!b.lastMessageTime) return -1;
+                  return (
+                    b.lastMessageTime.toMillis() - a.lastMessageTime.toMillis()
+                  );
+                });
+                setSelectedChat(sortedChats[0].id);
+              }
             }
           }
         );
