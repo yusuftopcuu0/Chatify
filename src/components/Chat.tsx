@@ -1,5 +1,8 @@
 import { useEffect, useState, useRef, Fragment } from "react";
 import { auth, db } from "../services/firebaseConfig";
+
+// Firestore collection references
+const usersCollection = collection(db, "users");
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -15,7 +18,6 @@ import {
   orderBy,
   Timestamp,
   doc,
-  getDoc,
   getDocs,
   setDoc,
   updateDoc,
@@ -255,46 +257,64 @@ const Chat = () => {
     if (!newChatEmail.trim() || !userEmail) return;
 
     if (newChatEmail === userEmail) {
-      toast.error(
-        "Kendinizle sohbet başlatamazsınız! Biz bunu daha önceden düşündük :))"
-      );
+      toast.error("Kendinizle sohbet başlatamazsınız!");
       return;
     }
 
     try {
-      const querySnapshot = await getDoc(
-        doc(db, "chats", `${userEmail}_${newChatEmail}`)
+      // Kullanıcı var mı kontrol et
+      const userQuery = query(
+        usersCollection,
+        where("email", "==", newChatEmail)
       );
+      const querySnapshot = await getDocs(userQuery);
 
-      if (querySnapshot.exists()) {
-        toast.error("Bu sohbet zaten mevcut!");
-        setSelectedChat(querySnapshot.id);
-      } else {
-        const currentUser = auth.currentUser;
-        const currentUserEmail = currentUser?.email || "";
-        const currentUsername =
-          currentUser?.displayName || currentUserEmail.split("@")[0];
-
-        const otherUsername = newChatEmail.split("@")[0];
-
-        const newChat = {
-          participants: [userEmail, newChatEmail].sort(),
-          participantData: {
-            [currentUserEmail]: { username: currentUsername },
-            [newChatEmail]: { username: otherUsername },
-          },
-          lastMessage: "",
-          lastMessageTime: serverTimestamp(),
-          createdAt: serverTimestamp(),
-        };
-
-        const chatRef = await addDoc(collection(db, "chats"), newChat);
-        setSelectedChat(chatRef.id);
+      if (querySnapshot.empty) {
+        toast.error("Bu e-posta ile kayıtlı kullanıcı bulunamadı.");
+        return; // Sohbet oluşturmayı durdur
       }
 
+      // Sohbet zaten var mı kontrol et
+      const chatQuery = query(
+        collection(db, "chats"),
+        where("participants", "array-contains", userEmail)
+      );
+
+      const chatSnapshot = await getDocs(chatQuery);
+      const existingChat = chatSnapshot.docs.find((doc) => {
+        const data = doc.data() as Chat;
+        return data.participants.includes(newChatEmail);
+      });
+
+      if (existingChat) {
+        toast.info("Bu sohbet zaten mevcut!");
+        setSelectedChat(existingChat.id);
+        return;
+      }
+
+      // Yeni sohbet oluştur
+      const currentUser = auth.currentUser;
+      const currentUsername =
+        currentUser?.displayName || userEmail.split("@")[0];
+      const otherUsername = newChatEmail.split("@")[0];
+
+      const newChat = {
+        participants: [userEmail, newChatEmail].sort(),
+        participantData: {
+          [userEmail]: { username: currentUsername },
+          [newChatEmail]: { username: otherUsername },
+        },
+        lastMessage: "",
+        lastMessageTime: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      };
+
+      const chatRef = await addDoc(collection(db, "chats"), newChat);
+      setSelectedChat(chatRef.id);
       setNewChatEmail("");
     } catch (error) {
       console.error("Error creating chat: ", error);
+      toast.error("Sohbet oluşturulurken bir hata oluştu");
     }
   };
 
@@ -396,21 +416,23 @@ const Chat = () => {
 
   const handleDeleteChat = async () => {
     if (!chatToDelete) return;
-    
+
     try {
       // Delete the chat document
       await deleteDoc(doc(db, "chats", chatToDelete));
-      
+
       // Delete all messages in the chat subcollection
       const messagesRef = collection(db, "chats", chatToDelete, "messages");
       const messagesSnapshot = await getDocs(messagesRef);
-      const deletePromises = messagesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      const deletePromises = messagesSnapshot.docs.map((doc) =>
+        deleteDoc(doc.ref)
+      );
       await Promise.all(deletePromises);
-      
+
       toast.success("Sohbet başarıyla silindi");
       setChatToDelete(null);
       setDeleteDialogOpen(false);
-      
+
       // Clear selected chat if it was the deleted one
       if (selectedChat === chatToDelete) {
         setSelectedChat(null);
@@ -592,10 +614,10 @@ const Chat = () => {
                   selected={selectedChat === chat.id}
                   onClick={() => handleChatSelect(chat.id)}
                   sx={{
-                    position: 'relative',
-                    '&:hover .delete-chat-button': {
+                    position: "relative",
+                    "&:hover .delete-chat-button": {
                       opacity: 1,
-                    }
+                    },
                   }}
                 >
                   <Avatar sx={{ mr: 2, bgcolor: "primary.main" }}>
@@ -607,19 +629,19 @@ const Chat = () => {
                     secondaryTypographyProps={{ noWrap: true }}
                     sx={{ pr: 4 }}
                   />
-                  <IconButton 
+                  <IconButton
                     className="delete-chat-button"
                     onClick={(e) => openDeleteDialog(chat.id, e)}
                     size="small"
                     sx={{
-                      position: 'absolute',
+                      position: "absolute",
                       right: 8,
                       opacity: 0,
-                      transition: 'opacity 0.2s',
-                      '&:hover': {
-                        color: 'error.main',
-                        backgroundColor: 'rgba(211, 47, 47, 0.04)'
-                      }
+                      transition: "opacity 0.2s",
+                      "&:hover": {
+                        color: "error.main",
+                        backgroundColor: "rgba(211, 47, 47, 0.04)",
+                      },
                     }}
                   >
                     <DeleteIcon fontSize="small" />
@@ -637,7 +659,7 @@ const Chat = () => {
               </ListItem>
             )}
           </List>
-          
+
           {/* Delete Confirmation Dialog */}
           <Dialog
             open={deleteDialogOpen}
@@ -648,7 +670,8 @@ const Chat = () => {
             <DialogTitle id="delete-dialog-title">Sohbeti Sil</DialogTitle>
             <DialogContent>
               <DialogContentText id="delete-dialog-description">
-                Bu sohbeti silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+                Bu sohbeti silmek istediğinizden emin misiniz? Bu işlem geri
+                alınamaz.
               </DialogContentText>
             </DialogContent>
             <DialogActions>
