@@ -89,7 +89,7 @@ const Chat = () => {
   const [newChatEmail, setNewChatEmail] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
-  const [showChatList, setShowChatList] = useState(!isMobile);
+  const [showChatList, setShowChatList] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null
@@ -384,9 +384,6 @@ const Chat = () => {
 
   const handleChatSelect = (chatId: string) => {
     setSelectedChat(chatId);
-    if (isMobile) {
-      setShowChatList(false);
-    }
   };
 
   const handleMenuOpen = (
@@ -493,9 +490,7 @@ const Chat = () => {
   };
 
   useEffect(() => {
-    if (isMobile && selectedChat) {
-      setShowChatList(false);
-    }
+    // No longer automatically hide chat list on mobile when chat is selected
   }, [selectedChat, isMobile]);
 
   return (
