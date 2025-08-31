@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef, Fragment } from "react";
 import { auth, db } from "../services/firebaseConfig";
-
 const usersCollection = collection(db, "users");
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
@@ -384,6 +383,9 @@ const Chat = () => {
 
   const handleChatSelect = (chatId: string) => {
     setSelectedChat(chatId);
+    if (isMobile) {
+      setShowChatList(false);
+    }
   };
 
   const handleMenuOpen = (
